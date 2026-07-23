@@ -1,96 +1,49 @@
-#include <pcap.h>
-#include <string.h>
 #include <signal.h>
-#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <pthread.h>
 
-#include "sniffer.h"
-#include "stat_counter.h"
-#include "timer.h"
+#include "setup.h"
+#include "ipc_server.h"
 
-// Global handle for pcap session
-pcap_t* hdl;
+volatile sig_atomic_t running = 1;
 
-// Struct to pass arguments to the sniffer thread
-struct sniffer_thread_params {
-    struct ip_addr_store* store;
-    char* errbuf;
-};
-
-// Signal handler for graceful shutdown
 void shutdown_handler(int signum) {
-    printf("\nCaught signal %d, shutting down...\n", signum);
-    if (hdl) {
-        pcap_breakloop(hdl);
-    }
-}
-
-// Thread function to run the sniffer
-void* sniffer_thread_func(void* args) {
-    struct sniffer_thread_params* params = (struct sniffer_thread_params*)args;
-    run_sniffer(hdl, params->store, params->errbuf);
-    return NULL;
+    running = 0;
 }
 
 int main() {
-    char errbuf[PCAP_ERRBUF_SIZE];
-    char* dev = "wlp0s20f3";
+    pthread_t ipc_thread;
+    char if_name[16];
 
-    // Initialize pcap
-    pcap_init(PCAP_CHAR_ENC_UTF_8, errbuf);
-    hdl = pcap_create(dev, errbuf);
-    if (hdl == NULL) {
-        fprintf(stderr, "pcap_create() failed: %s\n", errbuf);
-        return 1;
-    }
-
-    // Setup signal handlers for graceful shutdown
     signal(SIGINT, shutdown_handler);
     signal(SIGTERM, shutdown_handler);
 
-    // Create the statistics store
-    struct ip_addr_store store = create_ip_addr_store(dev);
-
-    // Start the timer thread
-    if (start_timer(&store) != 0) {
-        fprintf(stderr, "Failed to start timer thread.\n");
-        pcap_close(hdl);
+    if (setup_default_if()) {
+        fprintf(stderr, "Failed to setup default interface on first run.\n");
         return 1;
     }
 
-    // Create and start the sniffer thread
-    pthread_t sniffer_thread;
-    struct sniffer_thread_params sniffer_params = { .store = &store, .errbuf = errbuf };
-    if (pthread_create(&sniffer_thread, NULL, sniffer_thread_func, &sniffer_params) != 0) {
-        fprintf(stderr, "Failed to start sniffer thread.\n");
-        stop_timer();
-        pcap_close(hdl);
+    if (pthread_create(&ipc_thread, NULL, (void* (*)(void*))run_server, NULL)) {
+        fprintf(stderr, "Failed to create IPC server thread.\n");
+        stop_sniffer();
         return 1;
     }
 
-    printf("Sniffer started on %s. Press Ctrl+C to stop.\n", dev);
+    // Keep the main thread alive until a shutdown signal is received
+    while (running) {
+        sleep(1);
+    }
 
-    // Wait for the sniffer thread to finish (it will be broken by the signal handler)
-    pthread_join(sniffer_thread, NULL);
+    // Stop sniffer and IPC server
+    if (stop_sniffer()) {
+        fprintf(stderr, "Failed to stop sniffer gracefully.\n");
+    }
 
-    printf("Sniffer thread stopped. Finalizing...\n");
-
-    // Stop the timer thread gracefully
-    printf("Stopping timer thread...\n");
-    stop_timer();
-
-    // Now that all threads are stopped, perform one final save to prevent data loss.
-    printf("Performing final save...\n");
-    make_snapshot(&store);
-    save_snapshot(store.if_name);
-
-    printf("Cleanup complete. Exiting.\n");
-
-    // Final cleanup
-    pcap_close(hdl);
-    pthread_mutex_destroy(&dump_mutex);
-    pthread_cond_destroy(&dump_cond);
-    free_store(&store);
-
+    stop_server();
+    if (pthread_join(ipc_thread, NULL)) {
+        fprintf(stderr, "Failed to join IPC server thread.\n");
+    }
 
     return 0;
 }

@@ -1,17 +1,30 @@
 #include "ipc_server.h"
+#include <stdio.h>
+#include <sys/time.h>
+#include "setup.h" // For is_sniffer_running, setup, stop_sniffer
+
+// IPC Command definitions
+#define CMD_START_SNIFFER 0
+#define CMD_STOP_SNIFFER 1
+#define CMD_CHANGE_INTERFACE 2
+#define CMD_GET_SNIFFER_STATUS 3 // New command to query status
+
+static volatile sig_atomic_t ipc_running = 0;
+static int listen_sock;
 
 int run_server() {
     struct sockaddr_un addr;
     int client_sock;
     struct ipc_request req;
     ipc_response resp;
+    fd_set readfds;
+    struct timeval tv;
 
     unlink(SOCKET_NAME);
 
-    int listen_sock = socket(AF_UNIX, SOCK_STREAM, 0);
-
+    listen_sock = socket(AF_UNIX, SOCK_STREAM, 0);
     if (listen_sock == -1) {
-        perror("[ipc_server] socker error: ");
+        perror("[ipc_server] socket error");
         return 1;
     }
 
@@ -19,47 +32,114 @@ int run_server() {
     addr.sun_family = AF_UNIX;
     strncpy(addr.sun_path, SOCKET_NAME, sizeof(addr.sun_path) - 1);
 
-    if (bind(listen_sock, (const struct sockaddr*)&addr, sizeof(struct sockaddr_un))) {
-        perror("[ipc_server] bind error: ");
+    if (bind(listen_sock, (const struct sockaddr*)&addr, sizeof(struct sockaddr_un)) == -1) {
+        perror("[ipc_server] bind error");
+        close(listen_sock);
         return 1;
     }
 
-    if (listen(listen_sock, 10)) {
-        perror("[ipc_server] listen error: ");
+    if (listen(listen_sock, 10) == -1) {
+        perror("[ipc_server] listen error");
+        close(listen_sock);
         return 1;
     }
 
-    while (1) {
-        client_sock = accept(listen_sock, NULL, NULL);
-        if (client_sock) {
-            perror("[ipc_server] accepr error: ");
-            return 1;
+    ipc_running = 1;
+    while (ipc_running) {
+        FD_ZERO(&readfds);
+        FD_SET(listen_sock, &readfds);
+
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
+
+        int retval = select(listen_sock + 1, &readfds, NULL, NULL, &tv);
+
+        if (retval == -1) {
+            if (errno == EINTR) continue;
+            perror("[ipc_server] select error");
+            break;
         }
 
-        if (read(client_sock, &req, sizeof(struct ipc_request))) {
-            perror("[ipc_server] read error: ");
-            return 1;
+        if (retval == 0) {
+            continue;
         }
 
-        resp = handle_command(req);
+        if (FD_ISSET(listen_sock, &readfds)) {
+            client_sock = accept(listen_sock, NULL, NULL);
+            if (client_sock < 0) {
+                if (errno == EINTR) continue;
+                if (ipc_running) perror("[ipc_server] accept error");
+                continue;
+            }
 
-        if (write(client_sock, &resp, sizeof(ipc_response))) {
-            perror("[ipc_server] write error: ");
-            return 1;
+            if (read(client_sock, &req, sizeof(struct ipc_request)) > 0) {
+                 resp = handle_command(req);
+                 if (write(client_sock, &resp, sizeof(ipc_response)) < 0) {
+                    perror("[ipc_server] write error");
+                 }
+            }
+            close(client_sock);
         }
-
-        close(client_sock);
     }
 
     close(listen_sock);
+    unlink(SOCKET_NAME);
     return 0;
-}   
+}
 
-// TODO: implement commands
-// - start
-// - stop
-// - change interface
-// - show ip count from address
+void stop_server(void) {
+    ipc_running = 0;
+    if (listen_sock > 0) {
+        shutdown(listen_sock, SHUT_RDWR);
+    }
+}
+
 ipc_response handle_command(struct ipc_request req) {
-    return 0;
+    switch (req.cmd) {
+        case Start:
+            if (is_sniffer_running()) {
+                fprintf(stderr, "[ipc_server] Sniffer already running.\n");
+                return ER_ALRYR;
+            }
+            if (setup(req.data)) {
+                fprintf(stderr, "[ipc_server] Failed to start sniffer on %s.\n", req.data);
+                return ER_FSTAR;
+            }
+            fprintf(stderr, "[ipc_server] Sniffer started on %s.\n", req.data);
+            return 0;
+        case Stop:
+            if (!is_sniffer_running()) {
+                fprintf(stderr, "[ipc_server] Sniffer not running.\n");
+                return ER_NOTRG;
+            }
+            if (stop_sniffer()) {
+                fprintf(stderr, "[ipc_server] Failed to stop sniffer.\n");
+                return ER_FSTOP;
+            }
+            fprintf(stderr, "[ipc_server] Sniffer stopped.\n");
+            return 0; // Success
+        case SelectIf:
+            // This would involve stopping and then starting again.
+            // For now, let's keep it simple and just use start/stop.
+            // User can refine this logic.
+            fprintf(stderr, "[ipc_server] Change interface command received for %s (not fully implemented).\n", req.data);
+            if (is_sniffer_running()) {
+                if (stop_sniffer()) {
+                    fprintf(stderr, "[ipc_server] Failed to stop sniffer.\n");
+                    return ER_FSTOP;
+                }
+            }
+
+            if (setup_if(req.data)) {
+                fprintf(stderr, "[ipc_server] Failed to start sniffer on new if.\n");
+                return ER_FSTAR;
+            }
+
+
+
+            return 5; // Not implemented
+        default:
+            fprintf(stderr, "[ipc_server] Unknown command: %d\n", req.cmd);
+            return ER_UNKNC; // Unknown command
+    }
 }

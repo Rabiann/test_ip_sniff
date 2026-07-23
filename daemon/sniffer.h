@@ -16,11 +16,6 @@ void print_packet_info(u_char *user,
     const struct pcap_pkthdr *h, 
     const u_char *bytes);
 
-struct ip_stats {
-    uint32_t src_addr;
-    uint32_t count;
-};
-
 struct user_params {
     int padding;
     struct ip_addr_store* store;

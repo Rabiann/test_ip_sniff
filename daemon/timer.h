@@ -3,7 +3,7 @@
 #include <pthread.h>
 #include <stdbool.h>
 
-#include "stat_counter.h"
+#include "sniffer.h"
 
 #define DUMP_INTERVAL_SEC 5
 

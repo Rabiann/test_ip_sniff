@@ -50,7 +50,7 @@ int start_timer(struct ip_addr_store* store) {
 int stop_timer(void) {
     pthread_mutex_lock(&dump_mutex);
     timer_running = false;
-    pthread_cond_broadcast(&dump_cond); // Use broadcast to wake up all waiting threads (just one in this case)
+    pthread_cond_broadcast(&dump_cond);
     pthread_mutex_unlock(&dump_mutex);
 
     if (pthread_join(t_timer, NULL)) {

@@ -6,8 +6,7 @@
 enum Command {
     Start     = 0,
     Stop      = 1,
-    ShowCount = 2,
-    SelectIf  = 3,  
+    SelectIf  = 2,  
 };
 
 int parse_command(struct ipc_request* req, int argc, char* argv[]);
