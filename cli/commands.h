@@ -14,3 +14,4 @@ void show_help();
 
 void show_address_stats(char* iface);
 void show_all_stats();
+void show_ip_count(char ip_addr[17]);

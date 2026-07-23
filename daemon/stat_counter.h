@@ -11,7 +11,6 @@
 #define INIT_DARRAY_CAP 32
 #define D_DATA_PATH "/var/lib/snifferd/"
 #define MAX_LINE_LEN 32
-#define STORE_SER_PATH "/var/lib/snifferd/store.ser"
 
 struct ip_addr_store create_ip_addr_store(char if_name[16]);
 int inc(struct ip_addr_store* store, uint32_t ip_addr);
