@@ -10,7 +10,6 @@
 #include <stdio.h>
 
 #define SOCKET_NAME           "/tmp/sniffer.sock"
-#define ERROR_D_NOT_STARTED   111
 
 struct ipc_request {
     char cmd;
