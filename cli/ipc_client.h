@@ -8,15 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-
-#define SOCKET_NAME           "/tmp/sniffer.sock"
-
-struct ipc_request {
-    char cmd;
-    char data[15];
-};
-
-typedef int ipc_response;
+#include "../common.h"
 
 ipc_response run_client(struct ipc_request req);
 

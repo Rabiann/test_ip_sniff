@@ -1,4 +1,5 @@
 #include "interfaces.h"
+#include <pcap.h>
 
 char** get_all_interfaces(char* errbuf) {
     pcap_if_t* start;

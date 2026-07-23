@@ -1,13 +1,10 @@
 #pragma once
 
-#include "ipc_client.h"
 #include <stdio.h>
 
-enum Command {
-    Start     = 0,
-    Stop      = 1,
-    SelectIf  = 2,  
-};
+#include "ipc_client.h"
+#include "interfaces.h"
+#include "../common.h"
 
 int parse_command(struct ipc_request* req, int argc, char* argv[]);
 void show_help();

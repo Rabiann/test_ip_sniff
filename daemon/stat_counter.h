@@ -6,10 +6,8 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <stdio.h>
-#include "common.h"
 
 #define INIT_DARRAY_CAP 32
-#define D_DATA_PATH "/var/lib/snifferd/"
 #define MAX_LINE_LEN 32
 
 struct ip_addr_store create_ip_addr_store(char if_name[16]);

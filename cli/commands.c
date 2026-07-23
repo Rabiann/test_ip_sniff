@@ -9,11 +9,10 @@ static char* Stop_cmd   = "stop";
 static char* Show_cmd1  = "show";
 static char* Show_cmd2  = "count";
 static char* Select_cmd1 = "select";
-static char* Select_cmd2 = "select";
+static char* Select_cmd2 = "iface";
 static char* Show_stat  = "stat";
 static char* Show_help  = "--help";
 
-// For tsearch
 static int ip_str_cmp(const void *a, const void *b) {
     return strcmp(*(const char **)a, *(const char **)b);
 }
@@ -47,7 +46,7 @@ int parse_command(struct ipc_request* req, int argc, char* argv[]) {
 
         req->cmd = SelectIf;
         strncpy(req->data, argv[2], sizeof(req->data) - 1);
-        req->data[14] = 0;
+        req->data[sizeof(req->data) - 1] = 0;
         return 1;
     }
 
@@ -93,7 +92,6 @@ void show_ip_count(char ip_addr[17]) {
         }
 
         char line[256];
-        // Skip header
         if (fgets(line, sizeof(line), fp) == NULL) {
             fclose(fp);
             continue;
@@ -111,7 +109,6 @@ void show_ip_count(char ip_addr[17]) {
         fclose(fp);
     }
 
-    // Free interfaces
     for (int i = 0; interfaces[i] != NULL; i++) {
         free(interfaces[i]);
     }
@@ -144,7 +141,7 @@ void show_all_stats() {
         }
 
         char line[256];
-        if (fgets(line, sizeof(line), fp) == NULL) { // Skip header
+        if (fgets(line, sizeof(line), fp) == NULL) {
             fclose(fp);
             continue;
         }
@@ -164,10 +161,8 @@ void show_all_stats() {
                 void *node = tsearch(&ip_key, &root, ip_str_cmp);
                 if (node != NULL) {
                     if (*(char**)node == ip_key) {
-                        // New IP address was inserted
                         unique_ips++;
                     } else {
-                        // IP address was already in the tree
                         free(ip_key);
                     }
                 } else {
@@ -182,13 +177,11 @@ void show_all_stats() {
     printf("Total unique IP addresses: %lu\n", unique_ips);
     printf("Total packets received: %lu\n", total_packets);
 
-    // Free interfaces
     for (int i = 0; interfaces[i] != NULL; i++) {
         free(interfaces[i]);
     }
     free(interfaces);
 
-    // Free the tree
     if (root != NULL) {
         tdestroy(root, free_ip_node);
     }
@@ -213,7 +206,7 @@ void show_address_stats(char* iface) {
     }
 
     char line[256];
-    if (fgets(line, sizeof(line), fp) == NULL) { // Skip header
+    if (fgets(line, sizeof(line), fp) == NULL) {
         fclose(fp);
         return;
     }
@@ -233,10 +226,8 @@ void show_address_stats(char* iface) {
             void *node = tsearch(&ip_key, &root, ip_str_cmp);
             if (node != NULL) {
                 if (*(char**)node == ip_key) {
-                    // New IP address was inserted
                     unique_ips++;
                 } else {
-                    // IP address was already in the tree
                     free(ip_key);
                 }
             } else {
@@ -251,7 +242,6 @@ void show_address_stats(char* iface) {
     printf("  Total unique IP addresses: %lu\n", unique_ips);
     printf("  Total packets received: %lu\n", total_packets);
 
-    // Free the tree
     if (root != NULL) {
         tdestroy(root, free_ip_node);
     }

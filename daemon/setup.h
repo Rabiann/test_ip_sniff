@@ -1,7 +1,7 @@
 #pragma once
 
 #include <pthread.h>
-#include <stdbool.h> // For bool type
+#include <stdbool.h>
 #include "sniffer.h"
 
 extern char errbuf[PCAP_ERRBUF_SIZE];

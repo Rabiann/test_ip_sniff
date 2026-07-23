@@ -1,5 +1,6 @@
 #include "stat_counter.h"
 #include <string.h>
+#include "../common.h"
 
 struct ip_stats** stats_arr;
 uint32_t stats_arr_idx;
