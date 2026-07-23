@@ -26,11 +26,8 @@ ipc_response run_client(struct ipc_request req) {
                 fprintf(stderr, "Failed to start daemon.\n");
                 return -1;
             }
-            // Retry connection
-            if (connect(client_sock, (const struct sockaddr*)&addr, sizeof(struct sockaddr_un)) != 0) {
-                perror("[ipc_client] connect error after start");
-                return -2;
-            }
+
+            return 0;
         } else {
             perror("[ipc_client] connect error");
             return -2;

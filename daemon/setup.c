@@ -16,6 +16,8 @@ struct ip_addr_store* get_store(void) {
 }
 
 static void* start_sniffer(void* arg) {
+    (void)arg;
+
     run_sniffer(hdl, &store, errbuf);
     return NULL;
 }

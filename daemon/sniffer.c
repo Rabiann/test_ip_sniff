@@ -5,6 +5,8 @@ void print_packet_info(u_char *user,
     const struct pcap_pkthdr *h,
     const u_char *bytes)
 {
+    (void)h;
+
     struct user_params* params = (struct user_params*)user;
     int padding = params->padding;
     struct ip_addr_store* store = params->store;
@@ -30,7 +32,7 @@ int get_default_interface(char if_buf[15], char* errbuf) {
     pcap_findalldevs(&start, errbuf);
 
     if (start != NULL) {
-        strncpy(if_buf, start->name, (strlen(start->name) > 14) ? 14 : strlen(start->name));
+        strcpy(if_buf, start->name);
         if_buf[14] = '\0';
         pcap_freealldevs(start);
         return 0;
@@ -58,7 +60,8 @@ bool is_if_exist(char if_buf[15], char* errbuf) {
     return false;
 }
 
-int run_sniffer(pcap_t* handle, struct ip_addr_store* store, char* errbuf) {    
+int run_sniffer(pcap_t* handle, struct ip_addr_store* store, char* errbuf) { 
+    (void)errbuf;   
     if (pcap_activate(handle)) {
         pcap_perror(handle, "pcap_activate error: ");
         return 1;
@@ -92,7 +95,6 @@ int run_sniffer(pcap_t* handle, struct ip_addr_store* store, char* errbuf) {
         print_packet_info,
         (u_char*)&params
     )) {
-        pcap_perror(handle, "pcap_loop error: ");
         pcap_close(handle);
         return 1;
     }

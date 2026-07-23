@@ -9,13 +9,13 @@
 volatile sig_atomic_t running = 1;
 
 void shutdown_handler(int signum) {
+    (void)signum;
     running = 0;
 }
 
 int main() {
     pthread_t ipc_thread;
-    char if_name[16];
-
+    
     signal(SIGINT, shutdown_handler);
     signal(SIGTERM, shutdown_handler);
 
@@ -24,7 +24,7 @@ int main() {
         return 1;
     }
 
-    if (pthread_create(&ipc_thread, NULL, (void* (*)(void*))run_server, NULL)) {
+    if (pthread_create(&ipc_thread, NULL, run_server, NULL)) {
         fprintf(stderr, "Failed to create IPC server thread.\n");
         stop_sniffer();
         return 1;

@@ -11,7 +11,9 @@
 static volatile sig_atomic_t ipc_running = 0;
 static int listen_sock;
 
-int run_server() {
+void* run_server(void* arg) {
+    (void)arg;
+
     struct sockaddr_un addr;
     int client_sock;
     struct ipc_request req;
@@ -24,7 +26,7 @@ int run_server() {
     listen_sock = socket(AF_UNIX, SOCK_STREAM, 0);
     if (listen_sock == -1) {
         perror("[ipc_server] socket error");
-        return 1;
+        return NULL;
     }
 
     memset(&addr, 0, sizeof(struct sockaddr_un));
@@ -34,13 +36,13 @@ int run_server() {
     if (bind(listen_sock, (const struct sockaddr*)&addr, sizeof(struct sockaddr_un)) == -1) {
         perror("[ipc_server] bind error");
         close(listen_sock);
-        return 1;
+        return NULL;
     }
 
     if (listen(listen_sock, 10) == -1) {
         perror("[ipc_server] listen error");
         close(listen_sock);
-        return 1;
+        return NULL;
     }
 
     ipc_running = 1;
@@ -83,7 +85,7 @@ int run_server() {
 
     close(listen_sock);
     unlink(SOCKET_NAME);
-    return 0;
+    return NULL;
 }
 
 void stop_server(void) {
@@ -104,9 +106,9 @@ ipc_response handle_command(struct ipc_request req) {
                 fprintf(stderr, "[ipc_server] Failed to start sniffer on %s.\n", req.data);
                 return ER_FSTAR;
             }
-            fprintf(stderr, "[ipc_server] Sniffer started on %s.\n", req.data);
+            fprintf(stderr, "[ipc_server] Sniffer started.");
             return 0;
-        case Stop:
+        case Stop:;
             if (!is_sniffer_running()) {
                 fprintf(stderr, "[ipc_server] Sniffer not running.\n");
                 return ER_NOTRG;

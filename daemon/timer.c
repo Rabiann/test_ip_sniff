@@ -9,6 +9,8 @@ bool timer_running = true;
 pthread_mutex_t dump_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t dump_cond = PTHREAD_COND_INITIALIZER;
 
+static pthread_t t_timer;
+
 void* timer_loop(void* arg) {
     struct ip_addr_store* store = (struct ip_addr_store*)arg;
 

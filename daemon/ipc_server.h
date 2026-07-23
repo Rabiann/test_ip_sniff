@@ -16,7 +16,7 @@
 #define ER_FSTOP -5
 #define ER_UNKNC -100
 
-int run_server();
+void* run_server(void* arg);
 void stop_server(void);
 
 ipc_response handle_command(struct ipc_request req);

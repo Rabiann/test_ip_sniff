@@ -13,8 +13,7 @@ extern bool timer_running;
 extern pthread_mutex_t dump_mutex;
 extern pthread_cond_t dump_cond;
 
-static pthread_t t_timer;
 
-static void* timer_loop(void* arg);
+void* timer_loop(void* arg);
 int start_timer(struct ip_addr_store* store);
 int stop_timer(void);

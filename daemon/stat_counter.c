@@ -44,8 +44,8 @@ int inc(struct ip_addr_store* store, uint32_t ip_addr) {
 }
 
 int compare_fn(const void* p1, const void* p2) {
-    struct ip_stats* p_stats1 = *(struct ip_stats* const*)p1;
-    struct ip_stats* p_stats2 = *(struct ip_stats* const*)p2;
+    struct ip_stats* p_stats1 = (struct ip_stats*)p1;
+    struct ip_stats* p_stats2 = (struct ip_stats*)p2;
 
     uint32_t ip_addr1 = p_stats1->src_addr;
     uint32_t ip_addr2 = p_stats2->src_addr;
@@ -60,6 +60,8 @@ int compare_fn(const void* p1, const void* p2) {
 }
 
 void action_fn(const void* p_node, VISIT v, int l) {
+    (void)l;
+
     if (v == postorder || v == leaf) {
         struct ip_stats* stat = *(struct ip_stats**)p_node;
         stats_arr[stats_arr_idx] = stat;
@@ -68,8 +70,10 @@ void action_fn(const void* p_node, VISIT v, int l) {
 }
 
 void action_free(const void* p_node, VISIT v, int l) {
+    (void)l;
+
     if (v == postorder || v == leaf) {
-        struct ip_stats* p_stat = *(struct ip_stats**)p_node;
+        struct ip_stats* p_stat = (struct ip_stats*)p_node;
         free(p_stat);
     }
 }
@@ -105,13 +109,13 @@ int save_snapshot(const char* if_name) {
         return 1;
     }
 
-    if (fputs("Address,Count\n", fptr)) {
+    if (fputs("Address,Count\n", fptr) == -1) {
         fprintf(stderr, "failed to write to file %s\n", if_path);
         free(stats_arr);
         return 1;
     }
 
-    for (int i = 0; i < stats_arr_idx; i++) {
+    for (uint32_t i = 0; i < stats_arr_idx; i++) {
         uint32_t addr = stats_arr[i]->src_addr;
         uint32_t cnt  = stats_arr[i]->count;
 
@@ -144,8 +148,12 @@ int read_store(struct ip_addr_store* store) {
 
     fptr = fopen(if_path, "r");
     if (fptr == NULL) {
-        fprintf(stderr, "failed to open file %s\n", if_path);
-        return 1;
+        if (errno != ENOENT) {
+            perror("read store fopen error");
+            return 1;
+        }
+
+        return 0;
     }
 
     char line_buf[MAX_LINE_LEN];
@@ -161,7 +169,7 @@ int read_store(struct ip_addr_store* store) {
     uint32_t cnt;
 
     while (fgets(line_buf, MAX_LINE_LEN, fptr)) {
-        if (sscanf(line_buf, "%u.%u.%u.%u,%u\n", &oct1, &oct2, &oct3, &oct4, &cnt) != 5) {
+        if (sscanf(line_buf, "%hhu.%hhu.%hhu.%hhu,%u\n", &oct1, &oct2, &oct3, &oct4, &cnt) != 5) {
             fprintf(stderr, "read_store error: cant read line");
             return 1;
         }
@@ -202,7 +210,7 @@ int create_folder(const char* path) {
 }
 
 void free_node(void *nodep) {
-    free(*(void**)nodep);
+    free(nodep);
 }
 
 

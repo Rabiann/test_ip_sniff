@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include "commands.h"
 #include "interfaces.h"
 #include <stdlib.h>
@@ -14,17 +15,19 @@ static char* Show_stat  = "stat";
 static char* Show_help  = "--help";
 
 static int ip_str_cmp(const void *a, const void *b) {
-    return strcmp(*(const char **)a, *(const char **)b);
+    return strcmp((const char *)a, (const char *)b);
 }
 
 static void free_ip_node(void *nodep) {
-    free(*(char **)nodep);
+    free(nodep);
 }
 
 int parse_command(struct ipc_request* req, int argc, char* argv[]) {
-    if (argc < 2)
+    if (argc < 2) {
         show_help();
-
+        return 0;
+    }
+        
     if (argc == 2 && strcmp(argv[1], Start_cmd) == 0) { 
         req->cmd = Start;
         return 1;
@@ -38,7 +41,7 @@ int parse_command(struct ipc_request* req, int argc, char* argv[]) {
     if (argc == 4 && strcmp(argv[1], Show_cmd1)  == 0 &&
         strcmp(argv[3], Show_cmd2) == 0) {
         show_ip_count(argv[2]);
-        return 1;
+        return 0;
     }
 
     if (argc == 4 && strcmp(argv[1], Select_cmd1)  == 0 &&
@@ -57,11 +60,12 @@ int parse_command(struct ipc_request* req, int argc, char* argv[]) {
             show_all_stats();
         }
 
-        return 1;
+        return 0;
     } 
 
     if (argc == 2 && strcmp(argv[1], Show_help) == 0) {
         show_help();
+        return 0;
     } 
 
     show_help();
@@ -225,7 +229,7 @@ void show_address_stats(char* iface) {
 
             void *node = tsearch(&ip_key, &root, ip_str_cmp);
             if (node != NULL) {
-                if (*(char**)node == ip_key) {
+                if ((char*)node == ip_key) {
                     unique_ips++;
                 } else {
                     free(ip_key);

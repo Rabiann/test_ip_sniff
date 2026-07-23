@@ -18,7 +18,7 @@ enum Command {
 
 struct ipc_request {
     char cmd;
-    char data[15];
+    char data[16];
 };
 
 typedef int ipc_response;

@@ -18,7 +18,7 @@ char** get_all_interfaces(char* errbuf) {
     int i = 0;
     elem = start;
     while (elem != NULL) {
-        interf[i] = (char*)malloc(16 * sizeof(char));
+        interf[i] = (char*)malloc(32 * sizeof(char));
         strcpy(interf[i], elem->name);
         ++i;
         elem = elem->next;
