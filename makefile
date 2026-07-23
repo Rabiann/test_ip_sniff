@@ -5,7 +5,7 @@ LDFLAGS 	= -lpcap
 DAEMON_BIN 	= snifferd
 DAEMON_CLI 	= snifferctl
 
-DAEMON_SRC 	= daemon/main.c daemon/sniffer.c daemon/ipc_server.c
+DAEMON_SRC 	= daemon/main.c daemon/sniffer.c daemon/ipc_server.c daemon/stat_counter.c daemon/timer.c
 CLI_SRC 	= cli/main.c cli/ipc_client.c cli/commands.c
 
 DAEMON_OBJ 	= $(DAEMON_SRC:.c=.o)

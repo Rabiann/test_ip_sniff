@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <pcap.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "stat_counter.h"
 
@@ -27,3 +28,5 @@ struct user_params {
 
 void show_all_interfaces(char* errbuf);
 int run_sniffer(pcap_t*, struct ip_addr_store*, char*);
+int get_default_interface(char if_buf[15], char* errbuf);
+bool is_if_exist(char if_buf[15], char* errbuf);

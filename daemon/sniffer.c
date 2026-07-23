@@ -1,4 +1,5 @@
 #include "sniffer.h"
+#include "timer.h"
 
 void print_packet_info(u_char *user,
     const struct pcap_pkthdr *h,
@@ -8,16 +9,20 @@ void print_packet_info(u_char *user,
     int padding = params->padding;
     struct ip_addr_store* store = params->store;
 
+    pthread_mutex_lock(&dump_mutex);
+    if (dump_flag) {
+        make_snapshot(store);
+        dump_flag = false;
+        pthread_cond_signal(&dump_cond);
+    }
+    pthread_mutex_unlock(&dump_mutex);
+
     uint32_t addr = (uint32_t)(bytes[padding + 3]) |
         (uint32_t)(bytes[padding+2] << 8) |
         (uint32_t)(bytes[padding+1] << 16) |
         (uint32_t)(bytes[padding] << 24);
 
     inc(store, addr);
-
-    // check flag
-    // build flat list
-    // signal
 }
 
 
@@ -32,6 +37,39 @@ void show_all_interfaces(char* errbuf) {
         elem = elem->next;
     }
     pcap_freealldevs(start);
+}
+
+int get_default_interface(char if_buf[15], char* errbuf) {
+    pcap_if_t* start;
+    pcap_findalldevs(&start, errbuf);
+
+    if (start != NULL) {
+        strncpy(if_buf, start->name, (strlen(start->name) > 14) ? 14 : strlen(start->name));
+        if_buf[14] = '\0';
+        pcap_freealldevs(start);
+        return 0;
+    }
+
+    pcap_freealldevs(start);
+    return 1;
+}
+
+bool is_if_exist(char if_buf[15], char* errbuf) {
+    pcap_if_t* start;
+    pcap_if_t* elem;
+    pcap_findalldevs(&start, errbuf);
+
+    elem = start;
+    while (elem != NULL) {
+        if (strcmp(if_buf, elem->name) == 0) {
+            return true;
+        }
+
+        elem = elem->next;
+    }
+    pcap_freealldevs(start);
+
+    return false;
 }
 
 int run_sniffer(pcap_t* handle, struct ip_addr_store* store, char* errbuf) {    
