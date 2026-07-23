@@ -1,12 +1,13 @@
 #include "setup.h"
 #include "timer.h"
 #include <stdio.h>
-#include <signal.h> // For sig_atomic_t
-#include <string.h> // For strlen
+#include <signal.h> 
+#include <string.h>
 
 char errbuf[PCAP_ERRBUF_SIZE];
 static pcap_t* hdl;
 static pthread_t sniffer_thread;
+static char curr_if[16];
 static struct ip_addr_store store;
 static volatile sig_atomic_t sniffer_is_running = 0;
 
@@ -38,12 +39,21 @@ int setup_if(char buf_if[16]) {
     return setup(buf_if);
 }
 
+int setup_curr_if() {
+    if (curr_if[0] == '\0') {
+        return 1;
+    }
+
+    return setup(curr_if);
+}
+
 int setup(char buf_if[16]) {
     if (sniffer_is_running) {
         fprintf(stderr, "Sniffer is already running. Please stop it first.\n");
         return 1;
     }
-    
+
+    strcpy(curr_if, buf_if); // saving current interface to run it later
     store = create_ip_addr_store(buf_if);
     if (read_store(&store)) {
         return 1;

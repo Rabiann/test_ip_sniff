@@ -1,13 +1,12 @@
 #include "ipc_server.h"
 #include <stdio.h>
 #include <sys/time.h>
-#include "setup.h" // For is_sniffer_running, setup, stop_sniffer
+#include "setup.h"
 
-// IPC Command definitions
 #define CMD_START_SNIFFER 0
 #define CMD_STOP_SNIFFER 1
 #define CMD_CHANGE_INTERFACE 2
-#define CMD_GET_SNIFFER_STATUS 3 // New command to query status
+#define CMD_GET_SNIFFER_STATUS 3
 
 static volatile sig_atomic_t ipc_running = 0;
 static int listen_sock;
@@ -101,7 +100,7 @@ ipc_response handle_command(struct ipc_request req) {
                 fprintf(stderr, "[ipc_server] Sniffer already running.\n");
                 return ER_ALRYR;
             }
-            if (setup(req.data)) {
+            if (setup_curr_if()) {
                 fprintf(stderr, "[ipc_server] Failed to start sniffer on %s.\n", req.data);
                 return ER_FSTAR;
             }
@@ -117,12 +116,8 @@ ipc_response handle_command(struct ipc_request req) {
                 return ER_FSTOP;
             }
             fprintf(stderr, "[ipc_server] Sniffer stopped.\n");
-            return 0; // Success
+            return 0;
         case SelectIf:
-            // This would involve stopping and then starting again.
-            // For now, let's keep it simple and just use start/stop.
-            // User can refine this logic.
-            fprintf(stderr, "[ipc_server] Change interface command received for %s (not fully implemented).\n", req.data);
             if (is_sniffer_running()) {
                 if (stop_sniffer()) {
                     fprintf(stderr, "[ipc_server] Failed to stop sniffer.\n");
@@ -135,11 +130,9 @@ ipc_response handle_command(struct ipc_request req) {
                 return ER_FSTAR;
             }
 
-
-
-            return 5; // Not implemented
+            return 0;
         default:
             fprintf(stderr, "[ipc_server] Unknown command: %d\n", req.cmd);
-            return ER_UNKNC; // Unknown command
+            return ER_UNKNC;
     }
 }
