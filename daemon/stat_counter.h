@@ -1,28 +1,39 @@
 #pragma once
-
+#define _GNU_SOURCE
 #include <stdint.h>
 #include <stdlib.h>
 #include <search.h>
-#include "sniffer.h"
+#include <sys/stat.h>
+#include <errno.h>
+#include <stdio.h>
+#include "common.h"
 
 #define INIT_DARRAY_CAP 32
-
-struct ip_addr_darray {
-    uint32_t len;
-    uint32_t cap;
-    struct ip_stats* ptr;
-};
+#define D_DATA_PATH "/var/lib/snifferd/"
+#define MAX_LINE_LEN 32
 
 struct ip_addr_store create_ip_addr_store(char if_name[16]);
 int inc(struct ip_addr_store* store, uint32_t ip_addr);
 
-struct ip_addr_darray create_ip_addr_darray();
-int push(struct ip_addr_darray* vec, struct ip_stats stats);
-
 struct ip_addr_store {
     char if_name[16];
+    uint32_t tree_size;
     void* root;
-    struct ip_addr_darray vec;
 };
 
-int compare_fn(void*, void*);
+struct ip_stats** stats_arr;
+uint32_t stats_arr_idx;
+
+int compare_fn(const void*, const void*);
+void action_fn(const void*, VISIT, int);
+void action_free(const void*, VISIT, int);
+void free_node(void *nodep);
+
+
+int save_store(const struct ip_addr_store* store);
+int free_store(struct ip_addr_store* store);
+
+int create_folder(const char* path);
+
+int make_snapshot(const struct ip_addr_store* store);
+int save_snapshot(const char* if_name);

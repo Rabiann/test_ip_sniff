@@ -6,17 +6,20 @@ void print_packet_info(u_char *user,
 {
     struct user_params* params = (struct user_params*)user;
     int padding = params->padding;
+    struct ip_addr_store* store = params->store;
 
     uint32_t addr = (uint32_t)(bytes[padding + 3]) |
         (uint32_t)(bytes[padding+2] << 8) |
         (uint32_t)(bytes[padding+1] << 16) |
         (uint32_t)(bytes[padding] << 24);
 
-    printf("%u.%u.%u.%u\n", (unsigned char)((addr & 0xff000000) >> 24),
-        (unsigned char)((addr & 0x00ff0000) >> 16),
-        (unsigned char)((addr & 0x0000ff00) >> 8),
-        (unsigned char)(addr & 0x000000ff));
+    inc(store, addr);
+
+    // check flag
+    // build flat list
+    // signal
 }
+
 
 void show_all_interfaces(char* errbuf) {
     pcap_if_t* start;
@@ -31,7 +34,7 @@ void show_all_interfaces(char* errbuf) {
     pcap_freealldevs(start);
 }
 
-int run_sniffer(pcap_t* handle, char* errbuf) {    
+int run_sniffer(pcap_t* handle, struct ip_addr_store* store, char* errbuf) {    
     if (pcap_activate(handle)) {
         pcap_perror(handle, "pcap_activate error: ");
         return 1;
@@ -55,7 +58,8 @@ int run_sniffer(pcap_t* handle, char* errbuf) {
     }
 
     struct user_params params = {
-        .padding = padding
+        .padding = padding,
+        .store = store
     };
 
     if (pcap_loop(

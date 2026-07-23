@@ -5,49 +5,274 @@ struct ip_addr_store create_ip_addr_store(char if_name[16]) {
     
     strncpy(store.if_name, if_name, 16);
     store.root = malloc(sizeof(void*));
-    store.vec = create_ip_addr_darray();
+    store.tree_size = 0;
 
     return store;
 }
 
 int inc(struct ip_addr_store* store, uint32_t ip_addr) {
-    tsearch(ip_addr, store->root, NULL);
-    
-    return 0;
-}
+    struct ip_stats dummy = {
+        .count = 0,
+        .src_addr = ip_addr
+    };
 
-int compare_fn(uint32_t* p_ip_addr1, uint32_t* p_ip_addr2) {
-    uint32_t ip_addr1 = *p_ip_addr1;
-    uint32_t ip_addr2 = *p_ip_addr2;
+    struct ip_stats* p_dummy = (struct ip_stats*)malloc(sizeof(struct ip_stats));
+    *p_dummy = dummy;
 
-    return (int)(ip_addr1 - ip_addr2);
-}
+    struct ip_stats** res = tsearch(p_dummy, store->root, compare_fn);
 
-struct ip_addr_darray create_ip_addr_darray() {
-    struct ip_addr_darray darray;
-    darray.cap = INIT_DARRAY_CAP;
-    darray.len = 0;
-    struct ip_stats* ptr = (struct ip_stats*)malloc(darray.cap * sizeof(struct ip_stats));
-    darray.ptr = ptr;
-    return darray;
-}
-
-int push(struct ip_addr_darray* vec, struct ip_stats stats) {
-    if (vec->cap < vec->len+1) {
-        uint32_t new_cap = (uint32_t)(vec->cap * 3 / 2);
-
-        struct ip_stats* temp = (struct ip_stats*)realloc(vec->ptr, sizeof(new_cap * sizeof(struct ip_stats)));
-
-        if (temp == NULL) {
-            return 1;
-        } 
-
-        vec->cap = new_cap;
-        vec->ptr = temp;
+    if ((*res)->count > 0) {
+        free(p_dummy);
+    } else {
+        store->tree_size++;
     }
 
-    vec->ptr[++(vec->len)] = stats;
+    (*res)->count++;
     return 0;
 }
+
+int compare_fn(const void* p1, const void* p2) {
+    struct ip_stats* p_stats1 = (struct ip_stats*)p1;
+    struct ip_stats* p_stats2 = (struct ip_stats*)p2;
+
+    uint32_t ip_addr1 = p_stats1->src_addr;
+    uint32_t ip_addr2 = p_stats2->src_addr;
+
+    if (ip_addr1 > ip_addr2) {
+        return 1;
+    } else if (ip_addr1 < ip_addr2) {
+        return -1;
+    }
+
+    return 0;
+}
+
+void action_fn(const void* p_node, VISIT v, int l) {
+    struct ip_stats* stat = *(struct ip_stats**)p_node;
+
+    if (v == postorder || v == leaf) {
+        stats_arr[stats_arr_idx] = stat;
+        ++stats_arr_idx;
+    }
+}
+
+void action_free(const void* p_node, VISIT v, int l) {
+    struct ip_stats* p_stat = *(struct ip_stats**)p_node;
+
+    if (v == postorder || v == leaf) {
+        free(p_stat);
+    }
+}
+
+int make_snapshot(const struct ip_addr_store* store) {
+    stats_arr = (struct ip_stats**)malloc(store->tree_size * sizeof(struct ip_stats*));
+    stats_arr_idx = 0;
+
+    twalk(store->root, action_fn);
+    return 0;
+}
+
+int save_snapshot(const char* if_name) {
+    if (create_folder(D_DATA_PATH)) {
+        free(stats_arr);
+        return 1;
+    }
+
+    FILE* fptr;
+
+    char if_path[40] = {0};
+    strcat(if_path, D_DATA_PATH);
+    strcat(if_path, "sf.");
+    strcat(if_path, if_name);
+    strcat(if_path, ".csv");
+
+    fptr = fopen(if_path, "w");
+    if (fptr == NULL) {
+        fprintf(stderr, "failed to open file %s\n", if_path);
+        free(stats_arr);
+        return 1;
+    }
+
+    if (fputs("Address,Count\n", fptr)) {
+        fprintf(stderr, "failed to write to file %s\n", if_path);
+        free(stats_arr);
+        return 1;
+    }
+
+    for (int i = 0; i < stats_arr_idx; i++) {
+        uint32_t addr = stats_arr[i]->src_addr;
+        uint32_t cnt  = stats_arr[i]->count;
+
+        fprintf(fptr, "%u.%u.%u.%u,%u\n", 
+            (unsigned char)((addr & 0xff000000) >> 24),
+            (unsigned char)((addr & 0x00ff0000) >> 16),
+            (unsigned char)((addr & 0x0000ff00) >> 8),
+            (unsigned char)(addr & 0x000000ff),
+            cnt    
+        );
+    }
+
+    fclose(fptr);
+    free(stats_arr);
+    return 0;
+}
+
+int save_store(const struct ip_addr_store* store) {
+    stats_arr = (struct ip_stats**)malloc(store->tree_size * sizeof(struct ip_stats*));
+    stats_arr_idx = 0;
+
+    twalk(store->root, action_fn);
+
+    if (create_folder(D_DATA_PATH)) {
+        free(stats_arr);
+        return 1;
+    }
+
+    FILE* fptr;
+
+    char if_path[40] = {0};
+    strcat(if_path, D_DATA_PATH);
+    strcat(if_path, "sf.");
+    strcat(if_path, store->if_name);
+    strcat(if_path, ".csv");
+
+    fptr = fopen(if_path, "w");
+    if (fptr == NULL) {
+        fprintf(stderr, "failed to open file %s\n", if_path);
+        free(stats_arr);
+        return 1;
+    }
+
+    if (fputs("Address,Count\n", fptr)) {
+        fprintf(stderr, "failed to write to file %s\n", if_path);
+        free(stats_arr);
+        return 1;
+    }
+
+    for (int i = 0; i < store->tree_size; i++) {
+        uint32_t addr = stats_arr[i]->src_addr;
+        uint32_t cnt  = stats_arr[i]->count;
+
+        fprintf(fptr, "%u.%u.%u.%u,%u\n", 
+            (unsigned char)((addr & 0xff000000) >> 24),
+            (unsigned char)((addr & 0x00ff0000) >> 16),
+            (unsigned char)((addr & 0x0000ff00) >> 8),
+            (unsigned char)(addr & 0x000000ff),
+            cnt    
+        );
+    }
+
+    fclose(fptr);
+    free(stats_arr);
+    return 0;
+}
+
+int read_store(struct ip_addr_store* store) {
+    if (create_folder(D_DATA_PATH)) {
+        return 1;
+    }
+
+    FILE* fptr;
+
+    char if_path[40] = {0};
+    strcat(if_path, D_DATA_PATH);
+    strcat(if_path, "sf.");
+    strcat(if_path, store->if_name);
+    strcat(if_path, ".csv");
+
+    fptr = fopen(if_path, "r");
+    if (fptr == NULL) {
+        fprintf(stderr, "failed to open file %s\n", if_path);
+        return 1;
+    }
+
+    char line_buf[MAX_LINE_LEN];
+
+    if (fgets(line_buf, MAX_LINE_LEN, fptr) == NULL) {
+        return 0;
+    }
+
+    unsigned char oct1;
+    unsigned char oct2;
+    unsigned char oct3;
+    unsigned char oct4;
+    uint32_t cnt;
+
+    while (fgets(line_buf, MAX_LINE_LEN, fptr)) {
+        if (sscanf(line_buf, "%u.%u.%u.%u,%u\n", &oct1, &oct2, &oct3, &oct4, &cnt) != 5) {
+            fprintf(stderr, "read_store error: cant read line");
+            return 1;
+        }
+
+        uint32_t ip_addr = (uint32_t)oct1 << 24 | (uint32_t)oct2 << 16 | (uint32_t)oct3 << 8 | (uint32_t)oct4;
+
+        struct ip_stats dummy = {
+            .count = cnt,
+            .src_addr = ip_addr
+        };
+
+        struct ip_stats* p_dummy = (struct ip_stats*)malloc(sizeof(struct ip_stats));
+        *p_dummy = dummy;
+
+        struct ip_stats** res = tsearch(p_dummy, store->root, compare_fn);
+
+        if (res == NULL) {
+            fprintf(stderr, "read_store error: failed to insert stat");
+            return 1;
+        }
+
+        ++(store->tree_size);
+    }
+
+    fclose(fptr);
+    return 0;
+}
+
+int create_folder(const char* path) {
+    if (mkdir(path, 0755) == -1) {
+        if (errno != EEXIST) {
+            perror("[stat_counter] create folder");
+            return 1;
+        }
+    }
+}
+
+void free_node(void *nodep) {
+    struct ip_stats* p_stats = (struct ip_stats*)nodep;
+    free(p_stats);
+}
+
+
+int free_store(struct ip_addr_store* store) {
+    tdestroy(store->root, free_node);
+}
+
+
+// struct ip_addr_darray create_ip_addr_darray() {
+//     struct ip_addr_darray darray;
+//     darray.cap = INIT_DARRAY_CAP;
+//     darray.len = 0;
+//     struct ip_stats* ptr = (struct ip_stats*)malloc(darray.cap * sizeof(struct ip_stats));
+//     darray.ptr = ptr;
+//     return darray;
+// }
+
+// struct ip_stats* push(struct ip_addr_darray* vec, struct ip_stats stats) {
+//     if (vec->cap < vec->len+1) {
+//         uint32_t new_cap = (uint32_t)(vec->cap * 3 / 2);
+
+//         struct ip_stats* temp = (struct ip_stats*)realloc(vec->ptr, sizeof(new_cap * sizeof(struct ip_stats)));
+
+//         if (temp == NULL) {
+//             return NULL;
+//         } 
+
+//         vec->cap = new_cap;
+//         vec->ptr = temp;
+//     }
+
+//     vec->ptr[++(vec->len)] = stats;
+//     return ;
+// }
 
 
