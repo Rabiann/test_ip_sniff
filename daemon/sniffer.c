@@ -25,20 +25,6 @@ void print_packet_info(u_char *user,
     inc(store, addr);
 }
 
-
-void show_all_interfaces(char* errbuf) {
-    pcap_if_t* start;
-    pcap_if_t* elem;
-    pcap_findalldevs(&start, errbuf);
-
-    elem = start;
-    while (elem != NULL) {
-        printf("%s\n", elem->name);
-        elem = elem->next;
-    }
-    pcap_freealldevs(start);
-}
-
 int get_default_interface(char if_buf[15], char* errbuf) {
     pcap_if_t* start;
     pcap_findalldevs(&start, errbuf);

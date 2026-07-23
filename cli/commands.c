@@ -56,8 +56,21 @@ int parse_command(struct ipc_request* req, int argc, char* argv[]) {
     return 0;
 }
 
+void show_ip_count(char ip_addr[17]) {}
+
 void show_all_stats() {}
 
-void show_address_stats(char* iface) {}
+void show_iface_stats(char* iface) {}
 
-void show_help() {}
+void show_help() {
+    printf("Snifferd - ip sniffer service       \
+                                                \
+    Saves how many packets received from ip  \
+    1) start - start sniffing from default interface \
+    2) stop - stop sniffing \
+    3) show [ip] count - print number of packets received from IP address \
+    4) select iface [iface] - select interface for sniffing \
+    5) stat [iface] - show statistics for particular interface, if omitted - for all interfaces \
+    6) --help - show that information \
+    ");
+}
